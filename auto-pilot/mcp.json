@@ -8,12 +8,7 @@
         "--python", ">=3.10",
         "${CURSOR_PLUGIN_ROOT}/server/launch.py"
       ],
-      "envFile": "${workspaceFolder}/.env",
-      "env": {
-        "CONFIGURED_PLATFORM_API_KEY": "${PLATFORM_API_KEY}",
-        "CONFIGURED_PLATFORM_API_URL": "${PLATFORM_API_URL}",
-        "CONFIGURED_BACKEND_URL": "${BACKEND_URL}"
-      }
+      "envFile": "${workspaceFolder}/.env"
     }
   }
 }

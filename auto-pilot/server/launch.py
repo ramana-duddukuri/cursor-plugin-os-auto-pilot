@@ -128,10 +128,15 @@ def _load_env_file(env: MutableMapping[str, str], project_dir: str) -> None:
             continue
         key, _, val = line.partition("=")
         key = key.strip()
-        if key not in _OVERRIDABLE or env.get(key):
-            continue
         val = val.strip().strip("'\"")
-        if val and not _is_placeholder(val):
+        if not val or _is_placeholder(val):
+            continue
+        if key not in _OVERRIDABLE:
+            continue
+        # Workspace .env always wins for the API key. Cursor may inject an empty
+        # PLATFORM_API_KEY from plugin.json "variables" even when Configure is
+        # unused — that would block the key we actually want from the project.
+        if key == "PLATFORM_API_KEY" or not env.get(key):
             env[key] = val
 
 
@@ -172,9 +177,8 @@ def main() -> None:
         # Fail loudly here rather than let every tool call come back 403 with no
         # hint that the cause is configuration rather than permissions.
         print(
-            "auto-pilot: no PLATFORM_API_KEY configured. Set it under "
-            "Plugins -> auto-pilot -> Configure, or add PLATFORM_API_KEY=... to "
-            f"{os.path.join(project_dir, '.env')}",
+            "auto-pilot: no PLATFORM_API_KEY configured. Add "
+            f"PLATFORM_API_KEY=... to {os.path.join(project_dir, '.env')}",
             file=sys.stderr,
         )
 

@@ -41,7 +41,6 @@
         "description": "Base URL of the Oniesoft backend. Leave blank to use the per-project config.json value.",
         "default": ""
       }
-    },
-    "required": ["PLATFORM_API_KEY"]
+    }
   }
 }

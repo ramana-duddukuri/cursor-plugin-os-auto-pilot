@@ -10,7 +10,7 @@
       ],
       "envFile": "${workspaceFolder}/.env",
       "env": {
-        "CONFIGURED_PLATFORM_API_KEY": "${PLATFORM_API_KEY}",
+        "PLATFORM_API_KEY": "${env:PLATFORM_API_KEY}",
         "CONFIGURED_PLATFORM_API_URL": "${PLATFORM_API_URL}",
         "CONFIGURED_BACKEND_URL": "${BACKEND_URL}"
       }

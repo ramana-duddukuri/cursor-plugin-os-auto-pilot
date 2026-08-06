@@ -82,6 +82,59 @@ def _inject_project_config(env: MutableMapping[str, str], project_dir: str) -> N
             pass
 
 
+#: Settings that may come from the plugin's Configure UI or the workspace .env.
+_OVERRIDABLE = ("PLATFORM_API_KEY", "PLATFORM_API_URL", "BACKEND_URL")
+
+
+def _is_placeholder(val: str) -> bool:
+    """True if `val` is an unsubstituted ``${VAR}`` template rather than a value."""
+    return val.startswith("${") and val.endswith("}")
+
+
+def _promote_configured(env: MutableMapping[str, str]) -> None:
+    """Move real ``CONFIGURED_*`` values onto their plain names, highest priority.
+
+    mcp.json deliberately injects the Configure-UI variables under a
+    ``CONFIGURED_`` prefix. A server's ``env`` block overrides anything loaded
+    from its ``envFile``, so injecting them under the plain names would let an
+    *unset* plugin variable — which arrives as the literal string
+    ``${PLATFORM_API_KEY}`` — silently clobber a perfectly good key from the
+    workspace .env. Promoting here, and only when the value is real, keeps the
+    intended precedence: Configure > .env > config.json.
+    """
+    for name in _OVERRIDABLE:
+        configured = env.pop(f"CONFIGURED_{name}", "")
+        if configured and not _is_placeholder(configured):
+            env[name] = configured
+
+
+def _load_env_file(env: MutableMapping[str, str], project_dir: str) -> None:
+    """Fill any still-unset setting from the workspace's ``.env``.
+
+    Cursor's ``envFile`` already does this for stdio servers, so this is a
+    fallback for hosts that don't support it. Only fills gaps — never overrides
+    a value that Configure supplied.
+    """
+    path = os.path.join(project_dir, ".env")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.readlines()
+    except Exception:
+        return
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        if key not in _OVERRIDABLE or env.get(key):
+            continue
+        val = val.strip().strip("'\"")
+        if val and not _is_placeholder(val):
+            env[key] = val
+
+
 def _strip_unresolved(env: MutableMapping[str, str]) -> None:
     """Drop env vars still holding an unsubstituted ``${VAR}`` placeholder.
 
@@ -101,6 +154,8 @@ def main() -> None:
         # runs; nothing further to do.
         return
 
+    # Precedence, highest first: Configure UI > workspace .env > config.json.
+    _promote_configured(os.environ)
     _strip_unresolved(os.environ)
 
     # Cursor sets CURSOR_PROJECT_DIR, and also CLAUDE_PROJECT_DIR as a
@@ -110,7 +165,18 @@ def main() -> None:
         or os.environ.get("CLAUDE_PROJECT_DIR")
         or os.getcwd()
     )
+    _load_env_file(os.environ, project_dir)
     _inject_project_config(os.environ, project_dir)
+
+    if not os.environ.get("PLATFORM_API_KEY"):
+        # Fail loudly here rather than let every tool call come back 403 with no
+        # hint that the cause is configuration rather than permissions.
+        print(
+            "auto-pilot: no PLATFORM_API_KEY configured. Set it under "
+            "Plugins -> auto-pilot -> Configure, or add PLATFORM_API_KEY=... to "
+            f"{os.path.join(project_dir, '.env')}",
+            file=sys.stderr,
+        )
 
     sys.path.insert(0, PLUGIN_ROOT)
     os.chdir(PLUGIN_ROOT)

@@ -54,9 +54,27 @@ rsync -a --delete --exclude '.git' --exclude '.venv' --exclude '__pycache__' --e
 
 Re-run after edits, then Cmd+Shift+P → **Reload Window**.
 
-> Local installs get **no Configure UI** — that only exists for marketplace plugins. For
-> local testing, put a literal key in `auto-pilot/mcp.json`'s `env` block, and take care
-> not to commit it.
+## Where the API key comes from
+
+Resolved in this order, highest first:
+
+| Source | Set it in | Use when |
+|---|---|---|
+| **Configure UI** | Plugins → auto-pilot → Configure | Normal team use — each person's own key, nothing in the repo |
+| **Workspace `.env`** | `PLATFORM_API_KEY=...` in the project root | Local dev, or before the marketplace is published |
+| — | — | `PLATFORM_API_URL` / `BACKEND_URL` fall back to `config.json` |
+
+`mcp.json` injects the Configure variables under a `CONFIGURED_` prefix on purpose. A
+server's `env` block overrides its `envFile`, so injecting them under the plain names
+would let an **unset** plugin variable — which arrives as the literal string
+`${PLATFORM_API_KEY}` — clobber a working key from `.env`. `launch.py` promotes the
+`CONFIGURED_*` values only when they hold a real value.
+
+If no key resolves, the server logs a clear message to stderr rather than letting every
+tool call fail with an unexplained **403**.
+
+> **Never commit `.env`** — it is gitignored here. For team distribution prefer the
+> Configure UI so no key is stored in a repo at all.
 
 ## Requirements
 

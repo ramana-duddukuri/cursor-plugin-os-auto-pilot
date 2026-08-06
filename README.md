@@ -70,8 +70,16 @@ would let an **unset** plugin variable — which arrives as the literal string
 `${PLATFORM_API_KEY}` — clobber a working key from `.env`. `launch.py` promotes the
 `CONFIGURED_*` values only when they hold a real value.
 
-If no key resolves, the server logs a clear message to stderr rather than letting every
-tool call fail with an unexplained **403**.
+If no key resolves, the server logs a clear message to stderr at startup, and any tool
+call raises a named configuration error — rather than going out unauthenticated and
+coming back as an unexplained **403 Access Denied**, which is indistinguishable from a
+real permissions failure.
+
+Cursor does not always hand the server a usable workspace path (it may arrive as an
+unexpanded `~/...` or as the raw `${workspaceFolder}` placeholder). `launch.py` expands
+`~`, and otherwise falls back to the last workspace a healthy launch recorded in
+`.data/active_project.json`. Only the workspace *path* is recorded there — your API key
+is never copied out of `.env`.
 
 > **Never commit `.env`** — it is gitignored here. For team distribution prefer the
 > Configure UI so no key is stored in a repo at all.

@@ -72,11 +72,19 @@ def _headers() -> dict[str, str]:
     # of client defaults; a hardcoded default would instead force every
     # multipart call (post_backend_multipart) to go out mislabeled as
     # application/json, since a client-level header can't be unset per-request.
-    headers: dict[str, str] = {}
     api_key = os.environ.get("PLATFORM_API_KEY", "")
-    if api_key:
-        headers["x-api-key"] = api_key
-    return headers
+    if not api_key:
+        # Previously the header was simply omitted, and the backend answered
+        # "403 Access Denied" — indistinguishable from a real permissions
+        # failure, which sent people hunting through platform roles for what was
+        # only ever missing configuration. Name the actual cause instead.
+        raise RuntimeError(
+            "auto-pilot: no PLATFORM_API_KEY configured, so this request would "
+            "be sent unauthenticated and rejected as 403. Set the API key in "
+            "Plugins -> auto-pilot -> Configure, or add PLATFORM_API_KEY=... to "
+            "your workspace .env, then restart the MCP server."
+        )
+    return {"x-api-key": api_key}
 
 
 def get_client() -> httpx.AsyncClient:

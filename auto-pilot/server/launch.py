@@ -28,6 +28,35 @@ PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # back to a local dir so a plain checkout still works.
 DATA_DIR = os.environ.get("CURSOR_PLUGIN_DATA") or os.path.join(PLUGIN_ROOT, ".data")
 
+SNAPSHOT_PATH = os.path.join(DATA_DIR, "active_project.json")
+
+
+def _read_snapshot() -> dict:
+    try:
+        with open(SNAPSHOT_PATH, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+def _write_snapshot(updates: dict) -> None:
+    """Merge `updates` into the shared snapshot, never dropping existing keys.
+
+    Merging rather than overwriting matters because the two writers below run in
+    different situations: a workspace with only a ``.env`` records just the
+    directory, while one with a ``config.json`` also records the IDs.
+    """
+    if not updates:
+        return
+    snapshot = _read_snapshot()
+    snapshot.update(updates)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(SNAPSHOT_PATH, "w", encoding="utf-8") as fh:
+            json.dump(snapshot, fh)
+    except Exception:
+        pass
+
 
 def _inject_project_config(env: MutableMapping[str, str], project_dir: str) -> None:
     """Read the project's config.json (in the user's workspace — not the plugin
@@ -72,14 +101,7 @@ def _inject_project_config(env: MutableMapping[str, str], project_dir: str) -> N
         if config.get(key)
     }
     if snapshot.get("projectId"):
-        try:
-            os.makedirs(DATA_DIR, exist_ok=True)
-            with open(
-                os.path.join(DATA_DIR, "active_project.json"), "w", encoding="utf-8"
-            ) as fh:
-                json.dump(snapshot, fh)
-        except Exception:
-            pass
+        _write_snapshot(snapshot)
 
 
 #: Settings that may come from the plugin's Configure UI or the workspace .env.
@@ -133,10 +155,13 @@ def _load_env_file(env: MutableMapping[str, str], project_dir: str) -> None:
             continue
         if key not in _OVERRIDABLE:
             continue
-        # Workspace .env always wins for the API key. Cursor may inject an empty
-        # PLATFORM_API_KEY from plugin.json "variables" even when Configure is
-        # unused — that would block the key we actually want from the project.
-        if key == "PLATFORM_API_KEY" or not env.get(key):
+        # Gap-fill only. An earlier version force-overrode PLATFORM_API_KEY here,
+        # to stop an unset plugin variable injected under its plain name from
+        # blanking a good key. mcp.json now injects Configure values under the
+        # CONFIGURED_ prefix and _promote_configured drops unsubstituted ones, so
+        # anything sitting in env by this point is real and outranks the file —
+        # keeping the documented order: Configure > .env > config.json.
+        if not env.get(key):
             env[key] = val
 
 
@@ -153,6 +178,47 @@ def _strip_unresolved(env: MutableMapping[str, str]) -> None:
             del env[key]
 
 
+def _has_project_files(path: str) -> bool:
+    """True if `path` looks like a configured workspace for this plugin."""
+    return os.path.isfile(os.path.join(path, ".env")) or os.path.isfile(
+        os.path.join(path, "config.json")
+    )
+
+
+def _resolve_project_dir() -> str:
+    """Locate the workspace holding this project's ``.env`` / ``config.json``.
+
+    Cursor does not hand every launch a usable workspace path. Two forms show up
+    in practice, and both used to end in an unauthenticated server whose calls
+    came back 403:
+
+      * ``CURSOR_PROJECT_DIR=~/path/to/workspace`` — a literal, unexpanded tilde.
+        ``open()`` does not expand ``~``, so every read silently missed.
+      * ``CURSOR_PROJECT_DIR=${workspaceFolder}`` — the raw placeholder, stripped
+        by _strip_unresolved, leaving a cwd fallback that points at the plugin's
+        own cache directory rather than any workspace.
+
+    So: expand ``~`` first, then fall back to the last directory a healthy launch
+    recorded. Only the workspace *path* is stored — the API key itself is never
+    copied out of the user's ``.env``.
+    """
+    project_dir = os.path.expanduser(
+        os.environ.get("CURSOR_PROJECT_DIR")
+        or os.environ.get("CLAUDE_PROJECT_DIR")
+        or os.getcwd()
+    )
+
+    if _has_project_files(project_dir):
+        _write_snapshot({"workspaceDir": project_dir})
+        return project_dir
+
+    recorded = _read_snapshot().get("workspaceDir")
+    if recorded and _has_project_files(recorded):
+        return recorded
+
+    return project_dir
+
+
 def main() -> None:
     if "--bootstrap-only" in sys.argv[1:]:
         # `uv run` has already synced the environment by the time this code
@@ -163,13 +229,7 @@ def main() -> None:
     _promote_configured(os.environ)
     _strip_unresolved(os.environ)
 
-    # Cursor sets CURSOR_PROJECT_DIR, and also CLAUDE_PROJECT_DIR as a
-    # deliberate compatibility alias; either identifies the open workspace.
-    project_dir = (
-        os.environ.get("CURSOR_PROJECT_DIR")
-        or os.environ.get("CLAUDE_PROJECT_DIR")
-        or os.getcwd()
-    )
+    project_dir = _resolve_project_dir()
     _load_env_file(os.environ, project_dir)
     _inject_project_config(os.environ, project_dir)
 

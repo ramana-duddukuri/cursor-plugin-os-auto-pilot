@@ -1,0 +1,14 @@
+{
+  "name": "oniesoft",
+  "owner": {
+    "name": "Oniesoft"
+  },
+  "description": "Oniesoft's private plugin marketplace for the Oniesoft test automation platform.",
+  "plugins": [
+    {
+      "name": "auto-pilot",
+      "source": "auto-pilot",
+      "description": "Drive the Oniesoft test platform from Cursor: generate web/API/mobile/performance test cases, run them (native mobile via Appium + self-healing semantic locators), and analyze failures."
+    }
+  ]
+}

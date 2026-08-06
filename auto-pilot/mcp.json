@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "auto-pilot": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with-requirements", "${CURSOR_PLUGIN_ROOT}/server/requirements.txt",
+        "--python", ">=3.10",
+        "${CURSOR_PLUGIN_ROOT}/server/launch.py"
+      ],
+      "env": {
+        "PLATFORM_API_KEY": "${PLATFORM_API_KEY}",
+        "PLATFORM_API_URL": "${PLATFORM_API_URL}",
+        "BACKEND_URL": "${BACKEND_URL}"
+      }
+    }
+  }
+}

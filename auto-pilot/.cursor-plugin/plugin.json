@@ -1,0 +1,47 @@
+{
+  "name": "auto-pilot",
+  "displayName": "auto-pilot by Oniesoft",
+  "version": "1.0.0",
+  "description": "Drive the Oniesoft test platform from Cursor: generate web/API/mobile/performance test cases, run them (native mobile via Appium + self-healing semantic locators), and analyze failures.",
+  "author": {
+    "name": "Oniesoft"
+  },
+  "keywords": [
+    "testing",
+    "test-automation",
+    "api-testing",
+    "mobile-testing",
+    "performance-testing",
+    "qa"
+  ],
+
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "mcpServers": "./mcp.json",
+  "hooks": "./hooks/hooks.json",
+
+  "variables": {
+    "type": "object",
+    "properties": {
+      "PLATFORM_API_KEY": {
+        "type": "string",
+        "title": "API key",
+        "description": "Your personal Oniesoft API key. Generate one in the platform under Users > API Keys. Sent as the x-api-key header on every call.",
+        "sensitive": true
+      },
+      "PLATFORM_API_URL": {
+        "type": "string",
+        "title": "Platform API URL",
+        "description": "Base URL of the Oniesoft platform API. Leave blank to use the per-project config.json value.",
+        "default": ""
+      },
+      "BACKEND_URL": {
+        "type": "string",
+        "title": "Backend URL",
+        "description": "Base URL of the Oniesoft backend. Leave blank to use the per-project config.json value.",
+        "default": ""
+      }
+    },
+    "required": ["PLATFORM_API_KEY"]
+  }
+}

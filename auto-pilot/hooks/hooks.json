@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "command": "uv run --with-requirements \"${CURSOR_PLUGIN_ROOT}/server/requirements.txt\" --python \">=3.10\" \"${CURSOR_PLUGIN_ROOT}/server/launch.py\" --bootstrap-only",
+        "timeout": 120
+      }
+    ]
+  }
+}

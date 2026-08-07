@@ -1,7 +1,32 @@
+import re
 from typing import List, Literal, Optional
 import uuid
 
 from pydantic import BaseModel, Field, field_validator
+
+#: Where users are sent for load tests too long to run from here.
+AUTOPILOT_PORTAL_URL = "https://www.osautopilot.com"
+
+# Load profile defaults and bounds. These mirror the backend's
+# com.oniesoft.util.LoadProfileValidator, which is the source of truth — it applies
+# the defaults itself when a field is omitted. They are restated here only so the
+# run-tests skill can show the user what will be used before starting a run.
+DEFAULT_VIRTUAL_USERS = 100
+DEFAULT_DURATION = "1m"
+DEFAULT_RAMP_PATTERN = "linear"
+MAX_VIRTUAL_USERS = 50000
+
+#: This plugin's own ceiling on load-test duration — stricter than the backend, which
+#: accepts hours. Anything longer is redirected to AUTOPILOT_PORTAL_URL.
+MAX_DURATION_MINUTES = 3
+MAX_DURATION_SECONDS = MAX_DURATION_MINUTES * 60
+
+#: The load profile shown to the user before a Performance run starts.
+LOAD_PROFILE_DEFAULTS = {
+    "virtualUsers": DEFAULT_VIRTUAL_USERS,
+    "rampPattern": DEFAULT_RAMP_PATTERN,
+    "duration": DEFAULT_DURATION,
+}
 
 ALLOWED_DEFECT_STATES = {"Open", "Inprogress", "Reopened", "Closed", "Rejected"}
 ALLOWED_DEFECT_PRIORITIES = {"Minor", "Major", "Blocker", "Critical"}
@@ -22,7 +47,7 @@ ALLOWED_DEFECT_STATUSES = {
     "Won't Fix",
     "UnAssigned",
 }
-ALLOWED_TEST_MODES = {"Web", "API", "Mobile"}
+ALLOWED_TEST_MODES = {"Web", "API", "Mobile", "Performance"}
 ALLOWED_TEST_TYPES = {"Automation", "Manual", "AI Automated", "AI Draft"}
 ALLOWED_SEVERITIES = {"Minor", "Major", "Blocker", "Critical"}
 ALLOWED_TEST_RUN_STATUSES = {
@@ -379,7 +404,7 @@ class AddOrRemoveTestCasesFromTestRunInput(BaseModel):
     )
     testMode: Optional[str] = Field(
         None,
-        description="Test mode filter for the test cases to be added or removed from the test run. Supports one or more comma-separated values from 'Web', 'Api', or 'Mobile'.",
+        description="Test mode filter for the test cases to be added or removed from the test run. Supports one or more comma-separated values from 'Web', 'Api', 'Mobile', or 'Performance'.",
     )
     testType: Optional[str] = Field(
         None,
@@ -622,7 +647,7 @@ class GetTestCasesWithFiltersInAProjectInput(BaseModel):
     )
     testMode: Optional[str] = Field(
         None,
-        description="Test mode to filter test cases, accepting only 'Web', 'API', or 'Mobile' or combination of these in comma separated format (e.g. Web,Api) to filter test cases belonging to any of the provided test modes",
+        description="Test mode to filter test cases, accepting only 'Web', 'API', 'Mobile', or 'Performance' or combination of these in comma separated format (e.g. Web,Api) to filter test cases belonging to any of the provided test modes",
     )
     author: Optional[str] = Field(
         None, description="Name of the author to filter test cases by author name"
@@ -651,7 +676,7 @@ class GetTestCasesWithFiltersInAProjectInput(BaseModel):
         if normalized is None:
             return None
 
-        canonical_map = {"web": "Web", "api": "API", "mobile": "Mobile"}
+        canonical_map = {"web": "Web", "api": "API", "mobile": "Mobile", "performance": "Performance"}
         converted: list[str] = []
         invalid: list[str] = []
 
@@ -741,7 +766,7 @@ class GetTestCasesWithFiltersInAProjectOutput(BaseModel):
     testType: Literal["Automation", "Manual", "AI Automated", "AI Draft"] = Field(
         ..., description="Test type of the test case"
     )
-    testMode: Literal["Web", "API", "Mobile"] = Field(
+    testMode: Literal["Web", "API", "Mobile", "Performance"] = Field(
         ..., description="Test mode of the test case"
     )
     author: str = Field(..., description="Author of the test case")
@@ -784,6 +809,84 @@ class RunTestCaseInput(BaseModel):
         "server,server",
         description="Platform in which to execute the test case, either in server or local. For server 'server, server' and for local 'local, machineId'",
     )
+    # Load profile — Performance test cases only. Left as None rather than given
+    # defaults here on purpose: the backend's LoadProfileValidator already owns the
+    # defaults (100 VUs / "1m" / "linear"), and duplicating them client-side is how
+    # they drift. Omitted fields are dropped from the payload so the backend applies
+    # its own. See LOAD_PROFILE_DEFAULTS for the values surfaced to the user.
+    virtualUsers: Optional[int] = Field(
+        None,
+        ge=1,
+        le=MAX_VIRTUAL_USERS,
+        description=(
+            "Number of virtual users to simulate. Performance test cases only. "
+            f"Omit to use the backend default ({DEFAULT_VIRTUAL_USERS})."
+        ),
+    )
+    rampPattern: Optional[Literal["linear", "incremental", "waved"]] = Field(
+        None,
+        description=(
+            "Ramp pattern: 'linear', 'incremental', or 'waved'. Performance test "
+            f"cases only. Omit to use the backend default ('{DEFAULT_RAMP_PATTERN}')."
+        ),
+    )
+    duration: Optional[str] = Field(
+        None,
+        description=(
+            "Load test duration as '<int>[smh]' (e.g. '30s', '2m') or a bare integer "
+            "of seconds. Performance test cases only. Capped at "
+            f"{MAX_DURATION_MINUTES} minutes from this plugin. Omit to use the "
+            f"backend default ('{DEFAULT_DURATION}')."
+        ),
+    )
+
+    @field_validator("rampPattern", mode="before")
+    @classmethod
+    def normalize_ramp_pattern(cls, value: Optional[str]) -> Optional[str]:
+        """Accept 'Linear'/'LINEAR' etc. — the backend lower-cases these anyway."""
+        if value is None or not isinstance(value, str):
+            return value
+        return value.strip().lower()
+
+    @field_validator("duration", mode="before")
+    @classmethod
+    def validate_duration(cls, value: Optional[str]) -> Optional[str]:
+        """Parse the backend's duration grammar, then enforce this plugin's cap.
+
+        The cap is enforced here rather than only in the run-tests skill so that it
+        holds however run_test_case is reached — skill instructions can be skipped,
+        a model-level validator cannot. Long-running load tests belong on the
+        official portal, which is built to supervise them.
+        """
+        if value is None:
+            return None
+        raw = str(value).strip()
+        if not raw:
+            return None
+
+        match = re.fullmatch(r"(\d+)([smh])", raw)
+        if match:
+            amount, unit = int(match.group(1)), match.group(2)
+            seconds = amount * {"s": 1, "m": 60, "h": 3600}[unit]
+        elif raw.isdigit():
+            # The backend also accepts a bare positive integer of seconds.
+            seconds = int(raw)
+        else:
+            raise ValueError(
+                f'duration must be "<int>[smh]" (e.g. "30s", "2m") or a positive '
+                f'integer of seconds, but was "{value}"'
+            )
+
+        if seconds <= 0:
+            raise ValueError(f'duration must be greater than zero, but was "{value}"')
+
+        if seconds > MAX_DURATION_SECONDS:
+            raise ValueError(
+                f"duration {raw} exceeds the {MAX_DURATION_MINUTES}-minute limit for "
+                f"test runs started from this plugin. Run longer load tests from the "
+                f"Autopilot portal instead: {AUTOPILOT_PORTAL_URL}"
+            )
+        return raw
 
 
 class ScheduleTestRunInput(BaseModel):
@@ -1320,7 +1423,7 @@ class GetUtilsWithFiltersInput(BaseModel):
         normalized = _normalize_csv_filter(value)
         if normalized is None:
             return None
-        canonical_map = {"web": "Web", "api": "API", "mobile": "Mobile"}
+        canonical_map = {"web": "Web", "api": "API", "mobile": "Mobile", "performance": "Performance"}
         converted: list[str] = []
         invalid: list[str] = []
         for item in normalized.split(","):
@@ -1391,7 +1494,7 @@ class ClaudeUtilInput(BaseModel):
     """Input model for creating a new util."""
 
     utilName: str = Field(..., description="Name of the util")
-    testMode: Literal["Web", "API", "Mobile"] = Field(
+    testMode: Literal["Web", "API", "Mobile", "Performance"] = Field(
         ..., description="Test mode for the util"
     )
     testData: List[TestDataEntry] = Field(

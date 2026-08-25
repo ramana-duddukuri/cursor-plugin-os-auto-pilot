@@ -423,6 +423,10 @@ class AddOrRemoveTestCasesFromTestRunInput(BaseModel):
     isPerformance: bool = Field(
         ..., description="isPerformance filter for test cases to be performance test cases or not, true means performance test cases"
     )
+    debug: bool = Field(
+        default=False,
+        description="When true, append a structured debug block to the tool response (filter params, resolved IDs, payload sent to the backend). Use this to inspect tool behavior — print() output is not visible to the agent.",
+    )
 
     @field_validator("nameOrUniqueKey", mode="before")
     @classmethod

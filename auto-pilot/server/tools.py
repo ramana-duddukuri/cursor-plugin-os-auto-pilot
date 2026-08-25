@@ -100,7 +100,7 @@ async def get_autopilot_steps(test_mode: str) -> list[dict]:
     Do NOT call this tool in any other context or skill.
 
     Args:
-        test_mode: "web", "mobile", or "api"
+        test_mode: "web", "mobile", "performance", or "api"
 
     Returns:
         List of step definitions — each has "name", "description", "step" (the exact
@@ -715,7 +715,7 @@ async def get_user_details_by_id_or_email_or_unique_key(
 @mcp.tool("create_test_run")
 async def create_test_run(input: TestRunCreationInput) -> TestRunCreationOutput:
     """
-    Create a new test run.
+    Create a new test run. Make sure to ask the user for test run type is performance or not.
 
     Args:
         input (TestRunCreationInput): Input containing details for creating a test run.
@@ -852,9 +852,20 @@ async def add_or_remove_test_cases_from_test_run(
                 deleted=False,
             )
         )
-        resolved_unique_key_ids_as_str = [
-            str(case_id) for case_id in resolved_unique_key_ids
-        ]
+        if input.isPerformance:
+            resolved_unique_key_ids_as_str = [
+                str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids
+                if case_id.testMode == "Performance"
+            ]
+            non_performance_case_keys = [
+                case_id.uniqueKey for case_id in resolved_unique_key_ids
+                if case_id.testMode != "Performance"
+            ]
+            print(f"Non-performance test cases with keys: {non_performance_case_keys} can't be added to a performance test run.")
+        else:
+            resolved_unique_key_ids_as_str = [
+                str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids
+            ]
         if action == "add":
             add_case_ids = _append_unique(add_case_ids, resolved_unique_key_ids_as_str)
         elif action == "remove":
@@ -870,6 +881,7 @@ async def add_or_remove_test_cases_from_test_run(
         "author": input.author,
         "testType": input.testType,
         "severity": input.severity,
+        "isPerformance": input.isPerformance,
     }
     filter_base_params = {
         k: v for k, v in filter_base_params.items() if v not in (None, "")
@@ -1105,10 +1117,10 @@ async def get_test_cases_with_filters(
         raise Exception(f"An error occurred while retrieving test cases: {str(e)}")
 
 
-@mcp.tool("get_test_cases_uuid_by_unique_keys")
+# @mcp.tool("get_test_cases_uuid_by_unique_keys")
 async def get_test_cases_uuid_by_unique_keys(
     input: GetTestCasesUUIDByUniqueKeyInput,
-) -> List[uuid.UUID]:
+) -> List[GetTestCasesUUIDByUniqueKeyOutput]:
     """
     Get list of test cases UUIDs in a project by taking list of unique keys of the test cases.
     This method takes list of unique keys of test cases and returns list of test case uuids.
@@ -1125,7 +1137,7 @@ async def get_test_cases_uuid_by_unique_keys(
 
     semaphore = asyncio.Semaphore(5)
 
-    async def _fetch_uuid_for_key(unique_key: str) -> uuid.UUID:
+    async def _fetch_uuid_for_key(unique_key: str) -> GetTestCasesUUIDByUniqueKeyOutput:
         params = {
             "id": _project(input.projectId),
             "query": unique_key,
@@ -1158,7 +1170,7 @@ async def get_test_cases_uuid_by_unique_keys(
                 test_case_id = test_case.get("id")
                 if not test_case_id:
                     break
-                return uuid.UUID(str(test_case_id))
+                return GetTestCasesUUIDByUniqueKeyOutput(testCaseUUID=uuid.UUID(str(test_case_id)), testMode=test_case.get("testMode"), uniqueKey=test_case.get("uniqueKey"))
 
         raise Exception(
             f"No exact test case match found for unique key: {unique_key} in project with ID: {input.projectId}"

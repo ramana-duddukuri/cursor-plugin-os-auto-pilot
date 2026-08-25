@@ -20,9 +20,9 @@ auto-injected. (`server/launch.py` also injects them as environment variables at
 startup as a fallback, but that depends on the workspace being open when the server
 launches — don't depend on it.)
 
-The **API key** is the only credential held at plugin level: set it once under
-**Plugins → Configure** (`PLATFORM_API_KEY`). It is injected automatically — never
-read or pass it.
+The **API key** is set in the workspace **`.env`** file (`PLATFORM_API_KEY=...`).
+Generate one in the platform under Users → API Keys. It is injected automatically — never
+read or pass it in chat. Do **not** use the plugin Configure UI for the key.
 
 If `config.json` is missing a value you need, or a tool call fails with "No project_id
 given and no default configured" (or similar), ask the user for the missing value

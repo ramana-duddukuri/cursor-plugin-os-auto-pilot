@@ -1,6 +1,6 @@
 # Oniesoft Cursor Marketplace
 
-A private Cursor **team marketplace** hosting Oniesoft's plugins.
+A local Cursor marketplace for Oniesoft's **auto-pilot** plugin. Works on **Cursor individual plan** — clone this repo, register it as a marketplace from disk, and install the plugin from **Settings** or **Customize**.
 
 ```
 oniesoft-cursor-marketplace/
@@ -13,6 +13,7 @@ oniesoft-cursor-marketplace/
     ├── skills/                   # 8 workflow playbooks
     ├── agents/                   # 3 specialist subagents
     ├── server/                   # bundled FastMCP server (~31 tools)
+    ├── docs/INSTALLATION.md      # full install guide
     └── AGENTS.md                 # operational rules for the agent
 ```
 
@@ -22,70 +23,54 @@ oniesoft-cursor-marketplace/
 |---|---|
 | [`auto-pilot`](auto-pilot/) | Generate web/API/mobile/performance test cases, run them, and analyze failures on the Oniesoft platform. |
 
-## Publishing this marketplace (admin, one time)
+## Installation
 
-Requires a Cursor **Teams** (1 marketplace) or **Enterprise** (unlimited) plan.
+**Full step-by-step guide:** [auto-pilot/docs/INSTALLATION.md](auto-pilot/docs/INSTALLATION.md)
 
-1. Push this repo to GitHub.
-2. [cursor.com](https://cursor.com) → **Dashboard → Plugins**
-3. **Team Marketplaces → Add Marketplace → Import from Repo**, paste the repo URL
-4. **Add to Marketplace** for `auto-pilot`
-5. Set access (Organization Groups) and install mode — Default Off / Default On /
-   Required. Enable **Auto Refresh** to pick up pushes automatically.
-
-## Installing (teammates)
-
-1. **Customize** → find **auto-pilot** → **Install**
-2. **Configure** → paste your Oniesoft **API key** (`PLATFORM_API_KEY`)
-3. Add a `config.json` to each test project (see
-   [auto-pilot/AGENTS.md](auto-pilot/AGENTS.md) for the format)
-
-`PLATFORM_API_URL` and `BACKEND_URL` are optional overrides — leave them blank and the
-per-project `config.json` supplies them.
-
-## Local development
-
-Cursor **rejects symlinks** whose target sits outside `~/.cursor/plugins/local`, so a
-dev install must be a real copy of the **plugin folder** (not the marketplace root):
+### Quick start
 
 ```bash
-rsync -a --delete --exclude '.git' --exclude '.venv' --exclude '__pycache__' --exclude '.data' auto-pilot/ ~/.cursor/plugins/local/auto-pilot/
+# 1. Clone
+git clone https://bitbucket.org/onie-soft/auto-pilot-cursor-plugin.git ~/oniesoft-cursor-marketplace
 ```
 
-Re-run after edits, then Cmd+Shift+P → **Reload Window**.
+2. Cursor → **Settings** or **Customize** → **Add Marketplace from disk** → select `~/oniesoft-cursor-marketplace`
+3. **Install** → **auto-pilot by Oniesoft**
+4. In each test project workspace, create `.env`:
 
-## Where the API key comes from
+```env
+PLATFORM_API_KEY=your-personal-api-key-here
+```
 
-Resolved in this order, highest first:
+5. Add `config.json` to the project root (see [AGENTS.md](auto-pilot/AGENTS.md) for the format)
+6. **Restart Cursor**
 
-| Source | Set it in | Use when |
+### Updating
+
+After `git pull`, you must **reinstall the marketplace**, **reinstall the plugin**, and **restart Cursor** — Cursor caches installed plugins and does not pick up disk changes automatically.
+
+```bash
+cd ~/oniesoft-cursor-marketplace && git pull
+```
+
+Then in Cursor: remove & re-add marketplace from disk → uninstall & reinstall **auto-pilot** → quit and reopen Cursor.
+
+## API key and configuration
+
+| Setting | Where | Notes |
 |---|---|---|
-| **Configure UI** | Plugins → auto-pilot → Configure | Normal team use — each person's own key, nothing in the repo |
-| **Workspace `.env`** | `PLATFORM_API_KEY=...` in the project root | Local dev, or before the marketplace is published |
-| — | — | `PLATFORM_API_URL` / `BACKEND_URL` fall back to `config.json` |
+| **API key** | Workspace `.env` → `PLATFORM_API_KEY` | Required. Generate in platform → Users → API Keys. **Never commit `.env`.** |
+| **Company / project / user IDs** | Workspace `config.json` | Per test project |
+| **API URLs** | `config.json` (or optional `.env` overrides) | `platformApiUrl`, `backendUrl` |
 
-`mcp.json` injects the Configure variables under a `CONFIGURED_` prefix on purpose. A
-server's `env` block overrides its `envFile`, so injecting them under the plain names
-would let an **unset** plugin variable — which arrives as the literal string
-`${PLATFORM_API_KEY}` — clobber a working key from `.env`. `launch.py` promotes the
-`CONFIGURED_*` values only when they hold a real value.
+Do **not** rely on the plugin **Configure** UI for the API key — set it in `.env` for each workspace.
 
-If no key resolves, the server logs a clear message to stderr at startup, and any tool
-call raises a named configuration error — rather than going out unauthenticated and
-coming back as an unexplained **403 Access Denied**, which is indistinguishable from a
-real permissions failure.
-
-Cursor does not always hand the server a usable workspace path (it may arrive as an
-unexpanded `~/...` or as the raw `${workspaceFolder}` placeholder). `launch.py` expands
-`~`, and otherwise falls back to the last workspace a healthy launch recorded in
-`.data/active_project.json`. Only the workspace *path* is recorded there — your API key
-is never copied out of `.env`.
-
-> **Never commit `.env`** — it is gitignored here. For team distribution prefer the
-> Configure UI so no key is stored in a repo at all.
+If no key is found, the MCP server logs a clear error at startup rather than failing with a confusing 403.
 
 ## Requirements
 
-- `uv` on PATH (the server resolves its own Python 3.10+ and dependencies)
+- [Cursor](https://cursor.com) (individual plan is sufficient)
+- [Git](https://git-scm.com/downloads)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) on PATH (resolves Python 3.10+ and dependencies)
 - Reachable Oniesoft backends: platform API (`:8000`), backend (`:8088`)
 - A personal API key — platform → Users → API Keys

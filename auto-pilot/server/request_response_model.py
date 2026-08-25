@@ -590,6 +590,10 @@ class GetTestCasesUUIDByUniqueKeyOutput(BaseModel):
         ...,
         description="Unique key of test case"
     )
+    testType: str = Field(
+        ...,
+        description="Test type of test case"
+    )
     @field_validator("testMode", mode="before")
     @classmethod
     def validate_test_mode_csv(cls, value: Optional[str]) -> Optional[str]:

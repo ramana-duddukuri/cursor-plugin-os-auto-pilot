@@ -852,10 +852,14 @@ async def add_or_remove_test_cases_from_test_run(
                 deleted=False,
             )
         )
+        ai_draft_case_keys = [
+            case_id.uniqueKey for case_id in resolved_unique_key_ids
+            if case_id.testType.lower() == "ai draft"
+        ]
         if input.isPerformance:
             resolved_unique_key_ids_as_str = [
                 str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids
-                if case_id.testMode == "Performance"
+                if case_id.testMode == "Performance" and case_id.testType.lower() != "ai draft"
             ]
             non_performance_case_keys = [
                 case_id.uniqueKey for case_id in resolved_unique_key_ids
@@ -864,14 +868,15 @@ async def add_or_remove_test_cases_from_test_run(
             log = f"Non-performance test cases with keys: {non_performance_case_keys} can't be added to a performance test run."
         else:
             resolved_unique_key_ids_as_str = [
-                str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids if case_id.testMode != "Performance"
+                str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids if case_id.testMode != "Performance" and case_id.testType.lower() != "ai draft"
             ]
             performance_case_keys = [
                 case_id.uniqueKey for case_id in resolved_unique_key_ids
                 if case_id.testMode == "Performance"
             ]
             log = f"Performance test cases with keys: {performance_case_keys} can't be added to a Non-performance test run."
-
+        if ai_draft_case_keys:
+            log += f" AI draft test cases with keys: {ai_draft_case_keys} can't be added to a Non-performance test run."
         if action == "add":
             add_case_ids = _append_unique(add_case_ids, resolved_unique_key_ids_as_str)
         elif action == "remove":
@@ -1177,7 +1182,7 @@ async def get_test_cases_uuid_by_unique_keys(
                 test_case_id = test_case.get("id")
                 if not test_case_id:
                     break
-                return GetTestCasesUUIDByUniqueKeyOutput(testCaseUUID=uuid.UUID(str(test_case_id)), testMode=test_case.get("testMode"), uniqueKey=test_case.get("uniqueKey"))
+                return GetTestCasesUUIDByUniqueKeyOutput(testCaseUUID=uuid.UUID(str(test_case_id)), testMode=test_case.get("testMode"), uniqueKey=test_case.get("uniqueKey"), testType=test_case.get("testType"))
 
         raise Exception(
             f"No exact test case match found for unique key: {unique_key} in project with ID: {input.projectId}"

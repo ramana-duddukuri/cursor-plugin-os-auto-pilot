@@ -841,7 +841,7 @@ async def add_or_remove_test_cases_from_test_run(
     query_terms = _split_csv(input.nameOrUniqueKey)
     unique_key_terms = [term for term in query_terms if _looks_like_unique_key(term)]
     name_terms = [term for term in query_terms if term not in unique_key_terms]
-
+    log = ""
     if unique_key_terms:
         print(f"Resolving unique keys to IDs for: {unique_key_terms}")
         resolved_unique_key_ids = await get_test_cases_uuid_by_unique_keys(
@@ -861,11 +861,17 @@ async def add_or_remove_test_cases_from_test_run(
                 case_id.uniqueKey for case_id in resolved_unique_key_ids
                 if case_id.testMode != "Performance"
             ]
-            print(f"Non-performance test cases with keys: {non_performance_case_keys} can't be added to a performance test run.")
+            log = f"Non-performance test cases with keys: {non_performance_case_keys} can't be added to a performance test run."
         else:
             resolved_unique_key_ids_as_str = [
-                str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids
+                str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids if case_id.testMode != "Performance"
             ]
+            performance_case_keys = [
+                case_id.uniqueKey for case_id in resolved_unique_key_ids
+                if case_id.testMode != "Performance"
+            ]
+            log = f"Non-performance test cases with keys: {performance_case_keys} can't be added to a performance test run."
+
         if action == "add":
             add_case_ids = _append_unique(add_case_ids, resolved_unique_key_ids_as_str)
         elif action == "remove":
@@ -970,7 +976,7 @@ async def add_or_remove_test_cases_from_test_run(
         payload,
     )
     if resp["status_code"] == 200:
-        return f"Test cases successfully {action}ed the test run with ID: {input.id}"
+        return f"Test cases successfully {action}ed the test run with ID: {input.id}\nAddition info to user {log}"
     else:
         raise Exception(f"Failed to update test cases in test run: {resp['data']}")
 

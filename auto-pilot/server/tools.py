@@ -868,9 +868,9 @@ async def add_or_remove_test_cases_from_test_run(
             ]
             performance_case_keys = [
                 case_id.uniqueKey for case_id in resolved_unique_key_ids
-                if case_id.testMode != "Performance"
+                if case_id.testMode == "Performance"
             ]
-            log = f"Non-performance test cases with keys: {performance_case_keys} can't be added to a performance test run."
+            log = f"Performance test cases with keys: {performance_case_keys} can't be added to a Non-performance test run."
 
         if action == "add":
             add_case_ids = _append_unique(add_case_ids, resolved_unique_key_ids_as_str)

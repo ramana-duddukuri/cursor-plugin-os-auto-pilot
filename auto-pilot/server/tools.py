@@ -806,7 +806,7 @@ async def add_or_remove_test_cases_from_test_run(
     input: AddOrRemoveTestCasesFromTestRunInput,
 ) -> str:
     """
-    Add or remove test cases from a test run.
+    Add or remove test cases from a test run. Test Cases with AI Draft test type can't be added to a test run.
     We will first filter test cases by the provided criteria and fetch their IDs, then we will add or remove the test cases from the test run based on the action specified in the input (add or remove).
 
     Args:
@@ -876,7 +876,7 @@ async def add_or_remove_test_cases_from_test_run(
             ]
             log = f"Performance test cases with keys: {performance_case_keys} can't be added to a Non-performance test run."
         if ai_draft_case_keys:
-            log += f" AI draft test cases with keys: {ai_draft_case_keys} can't be added to a Non-performance test run."
+            log += f" AI draft test cases with keys: {ai_draft_case_keys} can't be added to a test run."
         if action == "add":
             add_case_ids = _append_unique(add_case_ids, resolved_unique_key_ids_as_str)
         elif action == "remove":

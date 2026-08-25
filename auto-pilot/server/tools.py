@@ -890,7 +890,7 @@ async def add_or_remove_test_cases_from_test_run(
                 remove_case_ids, resolved_unique_key_ids_as_str
             )
 
-    filter_base_params = {
+    filter_base_params: dict[str, Any] = {
         "query": ",".join(name_terms) if name_terms else None,
         "testMode": input.testMode,
         "featureName": input.featureName,
@@ -898,11 +898,12 @@ async def add_or_remove_test_cases_from_test_run(
         "author": input.author,
         "testType": input.testType,
         "severity": input.severity,
-        "isPerformance": input.isPerformance,
     }
     filter_base_params = {
         k: v for k, v in filter_base_params.items() if v not in (None, "")
     }
+    if filter_base_params:
+        filter_base_params.update({"isPerformance": input.isPerformance})
 
     should_fetch_filtered_test_cases = bool(filter_base_params)
     if input.debug:

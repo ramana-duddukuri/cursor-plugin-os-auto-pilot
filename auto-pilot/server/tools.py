@@ -1006,9 +1006,9 @@ async def add_or_remove_test_cases_from_test_run(
             )
 
         if action == "add":
-            add_case_ids = filtered_test_case_ids
+            add_case_ids = list(set(add_case_ids + filtered_test_case_ids))
         elif action == "remove":
-            remove_case_ids = filtered_test_case_ids
+            remove_case_ids = list(set(remove_case_ids + filtered_test_case_ids))
 
     if action == "add" and not add_case_ids:
         if input.debug:

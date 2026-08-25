@@ -809,9 +809,6 @@ async def add_or_remove_test_cases_from_test_run(
     Add or remove test cases from a test run.
     We will first filter test cases by the provided criteria and fetch their IDs, then we will add or remove the test cases from the test run based on the action specified in the input (add or remove).
 
-    Set ``debug`` to ``true`` to receive structured diagnostics in the response (resolved IDs,
-    filter params, backend payload). ``print()`` output from this tool is not visible to the agent.
-
     Args:
         input (AddOrRemoveTestCasesFromTestRunInput): Input containing details for adding or removing test cases from a test run. The action field in the input is used to specify whether to add or remove the specified test cases from the test run.
     Returns:
@@ -822,7 +819,6 @@ async def add_or_remove_test_cases_from_test_run(
     add_case_ids: list[str] = []
     remove_case_ids: list[str] = []
     action = input.action.lower()
-    debug_info: dict[str, Any] = {"action": input.action}
 
     def _split_csv(value: Optional[str]) -> list[str]:
         if not value:
@@ -847,8 +843,7 @@ async def add_or_remove_test_cases_from_test_run(
     name_terms = [term for term in query_terms if term not in unique_key_terms]
 
     if unique_key_terms:
-        if input.debug:
-            debug_info["unique_key_terms"] = unique_key_terms
+        print(f"Resolving unique keys to IDs for: {unique_key_terms}")
         resolved_unique_key_ids = await get_test_cases_uuid_by_unique_keys(
             GetTestCasesUUIDByUniqueKeyInput(
                 projectId=uuid.UUID(_project(input.projectId)),
@@ -857,15 +852,6 @@ async def add_or_remove_test_cases_from_test_run(
                 deleted=False,
             )
         )
-        if input.debug:
-            debug_info["resolved_unique_keys"] = [
-                {
-                    "uniqueKey": case_id.uniqueKey,
-                    "testCaseUUID": str(case_id.testCaseUUID),
-                    "testMode": case_id.testMode,
-                }
-                for case_id in resolved_unique_key_ids
-            ]
         if input.isPerformance:
             resolved_unique_key_ids_as_str = [
                 str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids
@@ -875,14 +861,11 @@ async def add_or_remove_test_cases_from_test_run(
                 case_id.uniqueKey for case_id in resolved_unique_key_ids
                 if case_id.testMode != "Performance"
             ]
-            if input.debug and non_performance_case_keys:
-                debug_info["skipped_non_performance_keys"] = non_performance_case_keys
+            print(f"Non-performance test cases with keys: {non_performance_case_keys} can't be added to a performance test run.")
         else:
             resolved_unique_key_ids_as_str = [
                 str(case_id.testCaseUUID) for case_id in resolved_unique_key_ids
             ]
-        if input.debug:
-            debug_info["unique_key_resolved_ids"] = resolved_unique_key_ids_as_str
         if action == "add":
             add_case_ids = _append_unique(add_case_ids, resolved_unique_key_ids_as_str)
         elif action == "remove":
@@ -906,14 +889,10 @@ async def add_or_remove_test_cases_from_test_run(
         filter_base_params.update({"isPerformance": input.isPerformance})
 
     should_fetch_filtered_test_cases = bool(filter_base_params)
-    if input.debug:
-        debug_info["filter_base_params"] = filter_base_params
-        debug_info["name_terms"] = name_terms
     if should_fetch_filtered_test_cases:
         page = 0
         size = 200
         filtered_test_case_ids: list[str] = []
-        filter_pages: list[dict[str, Any]] = []
 
         while True:
             filter_params = {
@@ -921,19 +900,13 @@ async def add_or_remove_test_cases_from_test_run(
                 "page": str(page),
                 "size": str(size),
             }
+            print(f"Fetching test cases for filtering with params: {filter_params}")
 
             filter_resp = await client.get_backend(
                 f"/testrun/v1/edittestrun/{input.id}/{_project(input.projectId)}",
                 params=filter_params,
             )
             if filter_resp["status_code"] != 200:
-                if input.debug:
-                    debug_info["filter_pages"] = filter_pages
-                    debug_info["filter_error"] = {
-                        "status_code": filter_resp["status_code"],
-                        "data": filter_resp["data"],
-                        "params": filter_params,
-                    }
                 raise Exception(
                     f"Failed to retrieve test cases for filtering: {filter_resp['data']}"
                 )
@@ -942,33 +915,12 @@ async def add_or_remove_test_cases_from_test_run(
             data = body.get("data", {}) if isinstance(body, dict) else {}
             test_cases = data.get("testCases", []) if isinstance(data, dict) else []
 
-            page_ids = [
+            filtered_test_case_ids.extend(
                 str(test_case.get("id"))
                 for test_case in test_cases
                 if test_case.get("id")
                 and test_case.get("testType", "").lower() != "manual"
-            ]
-            filtered_test_case_ids.extend(page_ids)
-
-            if input.debug:
-                filter_pages.append(
-                    {
-                        "params": filter_params,
-                        "status_code": filter_resp["status_code"],
-                        "returned_count": len(test_cases),
-                        "matched_non_manual_ids": len(page_ids),
-                        "sample": [
-                            {
-                                "id": test_case.get("id"),
-                                "uniqueKey": test_case.get("uniqueKey"),
-                                "testCaseName": test_case.get("testCaseName"),
-                                "testMode": test_case.get("testMode"),
-                                "testType": test_case.get("testType"),
-                            }
-                            for test_case in test_cases[:5]
-                        ],
-                    }
-                )
+            )
 
             # Stop conditions for different response pagination styles
             pages = body.get("pagination", {}) if isinstance(body, dict) else {}
@@ -991,16 +943,7 @@ async def add_or_remove_test_cases_from_test_run(
 
             page += 1
 
-        if input.debug:
-            debug_info["filter_pages"] = filter_pages
-            debug_info["filtered_test_case_ids"] = filtered_test_case_ids
-
         if len(filtered_test_case_ids) == 0:
-            if input.debug:
-                raise Exception(
-                    f"No test case found with the provided criteria to {input.action}\n\n--- DEBUG ---\n"
-                    + json.dumps(debug_info, indent=2, default=str)
-                )
             raise Exception(
                 f"No test case found with the provided criteria to {input.action}"
             )
@@ -1011,18 +954,8 @@ async def add_or_remove_test_cases_from_test_run(
             remove_case_ids = list(set(remove_case_ids + filtered_test_case_ids))
 
     if action == "add" and not add_case_ids:
-        if input.debug:
-            raise Exception(
-                "No test case IDs were resolved to add to the test run\n\n--- DEBUG ---\n"
-                + json.dumps(debug_info, indent=2, default=str)
-            )
         raise Exception("No test case IDs were resolved to add to the test run")
     if action == "remove" and not remove_case_ids:
-        if input.debug:
-            raise Exception(
-                "No test case IDs were resolved to remove from the test run\n\n--- DEBUG ---\n"
-                + json.dumps(debug_info, indent=2, default=str)
-            )
         raise Exception("No test case IDs were resolved to remove from the test run")
 
     payload = {
@@ -1032,33 +965,13 @@ async def add_or_remove_test_cases_from_test_run(
         "status": input.status,
         "id": str(input.id),
     }
-    if input.debug:
-        debug_info["add_case_ids"] = add_case_ids
-        debug_info["remove_case_ids"] = remove_case_ids
-        debug_info["addtestrun_payload"] = payload
     resp = await client.post_backend(
         f"/testrun/v1/addtestrun",
         payload,
     )
-    if input.debug:
-        debug_info["addtestrun_response"] = {
-            "status_code": resp["status_code"],
-            "data": resp["data"],
-        }
     if resp["status_code"] == 200:
-        msg = (
-            f"Test cases successfully {action}ed the test run with ID: {input.id} "
-            f"({len(add_case_ids if action == 'add' else remove_case_ids)} case(s))"
-        )
-        if input.debug:
-            return msg + "\n\n--- DEBUG ---\n" + json.dumps(debug_info, indent=2, default=str)
-        return msg
+        return f"Test cases successfully {action}ed the test run with ID: {input.id}"
     else:
-        if input.debug:
-            raise Exception(
-                f"Failed to update test cases in test run: {resp['data']}\n\n--- DEBUG ---\n"
-                + json.dumps(debug_info, indent=2, default=str)
-            )
         raise Exception(f"Failed to update test cases in test run: {resp['data']}")
 
 

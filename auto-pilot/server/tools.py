@@ -956,7 +956,7 @@ async def add_or_remove_test_cases_from_test_run(
 
         if len(filtered_test_case_ids) == 0:
             raise Exception(
-                f"No test case found with the provided criteria to {input.action}"
+                f"No test case found with the provided criteria to {input.action}. STOP THE PROCESS."
             )
 
         if action == "add":
@@ -965,9 +965,9 @@ async def add_or_remove_test_cases_from_test_run(
             remove_case_ids = list(set(remove_case_ids + filtered_test_case_ids))
 
     if action == "add" and not add_case_ids:
-        raise Exception("No test case IDs were resolved to add to the test run")
+        raise Exception("No test case IDs were resolved to add to the test run. STOP THE PROCESS.")
     if action == "remove" and not remove_case_ids:
-        raise Exception("No test case IDs were resolved to remove from the test run")
+        raise Exception("No test case IDs were resolved to remove from the test run. STOP THE PROCESS.")
 
     payload = {
         "testCaseId": add_case_ids,

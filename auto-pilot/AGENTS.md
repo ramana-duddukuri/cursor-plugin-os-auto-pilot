@@ -76,7 +76,7 @@ calling MCP tools inline in the main conversation.
 | Phase | Skill | What happens |
 |---|---|---|
 | 1 | `analyze-requirements` | Analyze requirement docs / Swagger / codebase → generate markdown test cases + utils |
-| 2 | `element-discoverer` agent | Enrich markdown with real element locators (Playwright or codebase grep) |
+| 2 | `element-discoverer` agent | Enrich markdown with locators: web = Playwright/CSS/XPath (Playwright MCP allowed); mobile = Appium/Selenium xpath only. Mobile with no recording/codebase → selector value `selector`; never Playwright MCP or locator JSON |
 | 3 | `push-to-autopilot` | Read enriched markdown → call `save_claude_utils` then `save_claude_test_cases` |
 
 ## Performance Test Case Workflow

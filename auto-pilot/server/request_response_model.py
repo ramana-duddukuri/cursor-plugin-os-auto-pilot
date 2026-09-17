@@ -3,7 +3,7 @@ import re
 from typing import List, Literal, Optional
 import uuid
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 #: Where users are sent for load tests too long to run from here.
 AUTOPILOT_PORTAL_URL = "https://www.osautopilot.com"
@@ -696,13 +696,24 @@ class GetUsersAssignedToProjectInput(BaseModel):
 class GetUsersAssignedToProjectOutput(BaseModel):
     """Model representing a user assigned to a project"""
 
-    userId: uuid.UUID = Field(..., description="User ID")
+    userId: uuid.UUID = Field(
+        ...,
+        description="Register/user ID — use for assignedToUUID on create_defect",
+    )
     empName: str = Field(
         ...,
         description="Display name — use for assignedTo and other name fields on create_defect",
     )
     empEmail: Optional[str] = Field(None, description="Email of the user")
     empRole: Optional[str] = Field(None, description="Role of the user in the project")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_register_id(cls, data: object) -> object:
+        # Backend ProfileResponseDto uses "id"; create_defect expects assignedToUUID.
+        if isinstance(data, dict) and "userId" not in data and data.get("id"):
+            data = {**data, "userId": data["id"]}
+        return data
 
 
 class GetTestCasesWithFiltersInAProjectInput(BaseModel):

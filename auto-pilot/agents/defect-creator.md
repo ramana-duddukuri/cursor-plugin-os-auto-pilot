@@ -26,9 +26,19 @@ skill section **From test-run analysis — group unique failures**:
 - `dependency` = comma-separated test-case unique keys
 - Confirm the defect table with the user before creating anything
 
+## Assignee selection (mandatory)
+
+On every defect flow, **call `get_users_assigned_to_project` before asking about assignee**.
+Show the numbered table from the API response and ask the user to pick a number.
+
+- Do **not** ask for "a name or email" unless the tool returns an empty list
+- Do **not** invent assignee options or add "Other"
+- If the tool errors, report the error — do not fall back to free-text assignee entry
+
 ## What you must not do
 
 - Call `create_defect` on the first turn
 - Guess assignee, module, or feature without lookup
 - Create one defect per test case when failures share the same root cause
 - Pass emails or UUIDs in `assignedTo` / `createdBy` name fields
+- Skip `get_users_assigned_to_project` or ask for assignee by name/email when the tool works

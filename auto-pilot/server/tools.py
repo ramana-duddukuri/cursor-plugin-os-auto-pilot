@@ -1072,7 +1072,14 @@ async def get_users_assigned_to_project(
         users = resp["data"]
         if not users:
             return []
-        return [GetUsersAssignedToProjectOutput(**user) for user in users]
+        if not isinstance(users, list):
+            users = [users]
+        parsed: list[GetUsersAssignedToProjectOutput] = []
+        for user in users:
+            if not isinstance(user, dict):
+                continue
+            parsed.append(GetUsersAssignedToProjectOutput(**user))
+        return parsed
     else:
         raise Exception(f"Failed to retrieve users assigned to project: {resp['data']}")
 

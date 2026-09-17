@@ -33,15 +33,24 @@ Use the returned `empName` as `createdBy` and all other creator/updater name fie
 
 ## Step 2 — Choose assignee
 
-Call `get_users_assigned_to_project` with `projectId` from config. Present every returned
-user in a table:
+**Always call `get_users_assigned_to_project` first** (with `projectId` from config) before
+asking the user anything about assignee. Do not invent an assignee list or add an "Other"
+option.
+
+Present **every** returned user in a numbered table — use only names from the API response:
 
 | # | Name | Email | Role |
 |---|---|---|---|
+| 1 | … | … | … |
 
-Ask who should own the defect — **ask even when only one user is returned**.
+Ask: *"Who should own this defect? Pick a number from the table above."*
 
-If the list is empty, fall back to `get_user_details_by_id_or_email_or_unique_key` with
+- **Ask even when only one user is returned** — show the table, then ask.
+- **Never skip the tool call** and jump straight to "give me a name or email".
+- **Never add "Other"** — the table is the complete list of assignable users.
+
+Only if `get_users_assigned_to_project` returns an **empty list**, say no users are assigned
+to this project and fall back to `get_user_details_by_id_or_email_or_unique_key` with
 `companyId` from config and a name/email search term.
 
 Use the chosen user's:

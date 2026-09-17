@@ -140,6 +140,7 @@ password_i1_3fa85f64-5717-4562-b3fc-2c963f66afa6 = AdminPass@1
 | `skills/run-tests/SKILL.md` | Run test cases or test runs (incl. Performance load profile) |
 | `skills/schedule-test-run/SKILL.md` | Schedule an existing test run for a future date/time + environment |
 | `skills/analyze-run/SKILL.md` | Failure analysis workflow |
+| `skills/create-defect/SKILL.md` | Create defects from failures or manual triage |
 | `agents/element-discoverer.md` | Phase 2 — enrich markdown with real locators |
 | `agents/failure-analyst.md` | Deep failure triage (delegated, not inline) |
 | `skills/create-datafile/SKILL.md` | Generate + upload a CSV data file (standalone) |
@@ -160,6 +161,9 @@ password_i1_3fa85f64-5717-4562-b3fc-2c963f66afa6 = AdminPass@1
 | `run_test_case` | Start one test case; carries the load profile for Performance cases |
 | `get_environments_assigned_to_user` | List a user's environments — the source for any environment prompt |
 | `schedule_test_run` | Set an existing test run to execute later; `environment` is a **name**, not a UUID |
+| `create_defect` | Log a defect; link failed test cases via `dependency` (comma-separated unique keys) |
+| `get_defects_with_filters` | Search existing defects by name, status, priority, assignee |
+| `get_users_assigned_to_project` | List users on a project — assignee picker for defect creation |
 
 ## Performance Run Profile
 

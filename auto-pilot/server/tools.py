@@ -291,7 +291,17 @@ async def fetch_test_run_results(test_run_id: str) -> dict[str, Any]:
         _inc(by_author, case.get("author", ""), status)
         if status == "fail":
             failed_cases.append(
-                {"id": case["id"], "name": case.get("testCaseName", "")}
+                {
+                    "id": case["id"],
+                    "name": case.get("testCaseName", ""),
+                    "uniqueKey": case.get("uniqueKey", ""),
+                    "module": case.get("module", ""),
+                    "feature": case.get("feature", ""),
+                    "moduleId": case.get("moduleId", ""),
+                    "featureId": case.get("featureId", ""),
+                    "testMode": case.get("testMode", ""),
+                    "severity": case.get("severity", ""),
+                }
             )
 
     return {
@@ -1041,6 +1051,32 @@ async def get_projects_assigned_to_user(
         raise Exception(f"Failed to retrieve projects assigned to user: {resp['data']}")
 
 
+@mcp.tool("get_users_assigned_to_project")
+async def get_users_assigned_to_project(
+    input: GetUsersAssignedToProjectInput,
+) -> List[GetUsersAssignedToProjectOutput]:
+    """
+    Get list of users assigned to a project. Use this to show assignee options when
+    creating a defect.
+
+    Args:
+        input (GetUsersAssignedToProjectInput): projectId — falls back to the configured default.
+
+    Returns:
+        List[GetUsersAssignedToProjectOutput]: users on the project (empName, userId, empEmail, empRole).
+    """
+    resp = await client.get_backend(
+        f"/projectusers/v1/getassignregisters/{_project(input.projectId)}",
+    )
+    if resp["status_code"] == 200:
+        users = resp["data"]
+        if not users:
+            return []
+        return [GetUsersAssignedToProjectOutput(**user) for user in users]
+    else:
+        raise Exception(f"Failed to retrieve users assigned to project: {resp['data']}")
+
+
 @mcp.tool("get_test_cases_with_filters")
 async def get_test_cases_with_filters(
     input: GetTestCasesWithFiltersInAProjectInput,
@@ -1568,3 +1604,36 @@ async def get_defects_with_filters(
 
     else:
         raise Exception(f"Failed to retrieve defects: {resp['data']}")
+
+
+@mcp.tool("create_defect")
+async def create_defect(input: CreateDefectInput) -> CreateDefectOutput:
+    """
+    Create a new defect with default values.
+
+    Args:
+        input (CreateDefectInput): Input containing details for creating a defect.
+        createdBy(user name), assignedTo(user name) and other user-related fields will be set to the value of createdBy from the input.
+        The priority field will be set to "Minor" by default.
+
+    Returns:
+        CreateDefectOutput: Output containing details of the created defect.
+    """
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    payload = input.model_dump(exclude={"token"}, mode="json", exclude_none=True)
+    resp = await client.post_backend(
+        f"/api/issues/save",
+        payload,
+        headers=headers,
+    )
+    if resp["status_code"] == 200:
+        data = resp["data"]
+        return CreateDefectOutput(
+            id=str(data.get("id", "")),
+            title=str(data.get("title", "")),
+            uniqueKey=str(data.get("uniqueKey", "")),
+        )
+    else:
+        raise Exception(f"Failed to create defect: {resp['data']}")

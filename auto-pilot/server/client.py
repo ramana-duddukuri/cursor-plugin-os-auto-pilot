@@ -126,9 +126,9 @@ async def get_platform(path: str, params: dict[str, Any] | None = None) -> dict[
     return _result(resp)
 
 
-async def post_backend(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def post_backend(path: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
     resp = await get_client().post(
-        f"{backend_url()}{path}", json=payload, headers=_headers()
+        f"{backend_url()}{path}", json=payload, headers=_headers().update(headers or {})
     )
     return _result(resp)
 
@@ -155,12 +155,11 @@ async def get_backend(path: str, params: dict[str, Any] | None = None) -> dict[s
     return _result(resp)
 
 
-async def patch_backend(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def patch_backend(path: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
     resp = await get_client().patch(
-        f"{backend_url()}{path}", json=payload, headers=_headers()
+        f"{backend_url()}{path}", json=payload, headers=_headers().update(headers or {})
     )
     return _result(resp)
-
 
 async def put_backend(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     resp = await get_client().put(

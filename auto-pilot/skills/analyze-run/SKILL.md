@@ -53,7 +53,7 @@ When the run has failures, ask after the report:
 > Do you want to create defects for the failed cases?
 
 - **No** → stop.
-- **Yes** → read and follow `create-defect` (From test-run analysis — group unique failures).
-  Create one defect per unique failure reason; put all affected test-case unique keys in
-  `dependency` (comma-separated). The `failure-analyst` subagent should run this flow
-  itself when it performed the analysis.
+- **Yes** → delegate to the `defect-creator` subagent (do not call `create_defect` inline).
+  Pass the run ID, failure analysis, and `failed_cases`. The subagent follows
+  `create-defect` — one defect per unique failure reason with comma-separated unique keys
+  in `dependency`.

@@ -1608,8 +1608,11 @@ async def get_defects_with_filters(
 
 @mcp.tool("create_defect")
 async def create_defect(input: CreateDefectInput) -> CreateDefectOutput:
-    """
-    Create a new defect with default values.
+    """Create a new defect with default values.
+
+    ⚠️  SKILL-SCOPED TOOL — only call after following `skills/create-defect/SKILL.md`
+    through Step 5 (assignee picker, confirmation), or from within the `defect-creator`
+    subagent. Do NOT call directly when the user asks to create/log a defect.
 
     Args:
         input (CreateDefectInput): Input containing details for creating a defect.

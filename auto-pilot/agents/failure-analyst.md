@@ -40,8 +40,6 @@ When the run has failures, ask after the report:
 > Do you want to create defects for the failed cases?
 
 - **No** → stop.
-- **Yes** → read `skills/create-defect/SKILL.md` and follow **From test-run analysis —
-  group unique failures**. Group cases that failed for the same reason into one defect;
-  set `dependency` to the comma-separated `uniqueKey` values from `failed_cases` in
-  `fetch_test_run_results`. Confirm the planned defects with the user before calling
-  `create_defect`.
+- **Yes** → delegate to the `defect-creator` subagent. Pass the run ID, grouped failure
+  analysis, and `failed_cases` (with unique keys, module, feature). Do **not** call
+  `create_defect` yourself.

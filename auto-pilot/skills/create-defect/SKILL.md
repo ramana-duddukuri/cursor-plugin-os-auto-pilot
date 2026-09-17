@@ -1,6 +1,11 @@
 ---
 name: create-defect
-description: Create an Oniesoft defect from a test failure or manual triage. Resolves assignees via project user lookup, groups duplicate failures into one defect with test-case unique keys in dependency. Use when the user asks to log a bug, create a defect, or file an issue — including after analyze-run when failures should become defects.
+description: >-
+  REQUIRED before calling create_defect. Create an Oniesoft defect from test failure
+  or manual triage — assignee picker, module/feature resolution, user confirmation.
+  Use when the user asks to log a bug, create a defect, or file an issue. Do NOT call
+  create_defect directly; read and follow this skill end-to-end first, or delegate to
+  the defect-creator subagent.
 ---
 
 # Create Defect

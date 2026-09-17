@@ -65,11 +65,20 @@ error instead of the real problem (a missing config value).
 skill**, during Step 2c before writing any autopilot steps. Never call it in any other
 skill, agent, or inline conversation.
 
+`create_defect` — **only call after reading and following `skills/create-defect/SKILL.md`
+through Step 5**, or from within the `defect-creator` subagent which enforces that flow.
+Never call inline when the user asks to "create a defect" / "log a bug" without completing
+assignee selection (`get_users_assigned_to_project`) and user confirmation first.
+
 ## Agent Delegation Rules
 
 When the user asks to analyze an Oniesoft test run (why it failed, compare runs,
 interpret a stack trace), always delegate to the `failure-analyst` subagent instead of
 calling MCP tools inline in the main conversation.
+
+When the user asks to create a defect, log a bug, or file an issue — or confirms defect
+creation after a test-run analysis — always delegate to the `defect-creator` subagent
+instead of calling `create_defect` inline in the main conversation.
 
 ## Three-Phase Test Case Workflow
 
@@ -143,6 +152,7 @@ password_i1_3fa85f64-5717-4562-b3fc-2c963f66afa6 = AdminPass@1
 | `skills/create-defect/SKILL.md` | Create defects from failures or manual triage |
 | `agents/element-discoverer.md` | Phase 2 — enrich markdown with real locators |
 | `agents/failure-analyst.md` | Deep failure triage (delegated, not inline) |
+| `agents/defect-creator.md` | Defect creation (delegated, not inline) |
 | `skills/create-datafile/SKILL.md` | Generate + upload a CSV data file (standalone) |
 | `skills/performance-testing/SKILL.md` | Author performance/load test cases |
 

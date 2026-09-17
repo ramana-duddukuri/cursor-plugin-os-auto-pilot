@@ -135,6 +135,14 @@ async def post_backend(path: str, payload: dict[str, Any], headers: dict[str, st
     )
     return _result(resp)
 
+async def post_backend_data(path: str, data: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
+    hdrs = _headers()
+    if headers:
+        hdrs.update(headers)
+    resp = await get_client().post(
+        f"{backend_url()}{path}", data=data, headers=hdrs
+    )
+    return _result(resp)
 
 async def post_backend_multipart(
     path: str, data: dict[str, Any], files: dict[str, tuple[str, bytes, str]]

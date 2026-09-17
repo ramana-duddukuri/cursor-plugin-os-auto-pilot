@@ -1623,9 +1623,9 @@ async def create_defect(input: CreateDefectInput) -> CreateDefectOutput:
         "Content-Type": "application/x-www-form-urlencoded",
     }
     payload = input.model_dump(exclude={"token"}, mode="json", exclude_none=True)
-    resp = await client.post_backend(
+    resp = await client.post_backend_data(
         f"/api/issues/save",
-        payload,
+        data=payload,
         headers=headers,
     )
     if resp["status_code"] == 200:

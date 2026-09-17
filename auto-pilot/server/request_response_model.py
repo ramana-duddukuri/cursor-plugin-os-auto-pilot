@@ -1654,7 +1654,10 @@ class CreateDefectInput(BaseModel):
     title: str = Field(..., description="Title of the defect")
     description: str = Field(..., description="Description of the defect")
     status: str | None = None
-    priority: Literal["Minor", "Major", "Blocker", "Critical"] | None = "Minor"
+    priority: Literal["Minor", "Major", "Blocker", "Critical"] | None = Field(
+        default=None,
+        description="Defect priority — must be chosen from impact analysis, not left unset",
+    )
     state: str | None = None
     assignedTo: str | None = Field(
         ..., description="Name of the user to whom the defect is assigned"
@@ -1662,6 +1665,10 @@ class CreateDefectInput(BaseModel):
     userId: uuid.UUID = Field(..., description="ID of the user creating the defect")
     createdBy: str | None = Field(
         ..., description="Name of the user creating the defect"
+    )
+    assignedBy: str | None = Field(
+        default=None,
+        description="Name of the user who assigned the defect — defaults to createdBy when omitted",
     )
     type: str | None = "Issue"
     effort: str | None = None
@@ -1719,6 +1726,12 @@ class CreateDefectInput(BaseModel):
         ..., description="ID of the company for which the defect is being created"
     )
     assignedToUUID: uuid.UUID = Field(..., description="UUID of the user to whom the defect is assigned")
+
+    @model_validator(mode="after")
+    def _default_assigned_by(self) -> "CreateDefectInput":
+        if not self.assignedBy and self.createdBy:
+            self.assignedBy = self.createdBy
+        return self
 
 class CreateDefectOutput(BaseModel):
     id: str = Field(..., description="ID of the created defect")

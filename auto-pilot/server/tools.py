@@ -1623,12 +1623,17 @@ async def create_defect(input: CreateDefectInput) -> CreateDefectOutput:
 
     Args:
         input (CreateDefectInput): Input containing details for creating a defect.
-        createdBy(user name), assignedTo(user name) and other user-related fields will be set to the value of createdBy from the input.
-        The priority field will be set to "Minor" by default.
+        assignedBy defaults to createdBy when omitted. priority must be set explicitly
+        (Blocker / Critical / Major / Minor) based on defect impact — see create-defect skill.
 
     Returns:
         CreateDefectOutput: Output containing details of the created defect.
     """
+    if not input.priority:
+        raise ValueError(
+            "priority is required — choose Blocker, Critical, Major, or Minor based on "
+            "defect impact (see create-defect skill Step 4)."
+        )
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
     }

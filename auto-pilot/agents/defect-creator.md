@@ -42,3 +42,5 @@ Show the numbered table from the API response and ask the user to pick a number.
 - Create one defect per test case when failures share the same root cause
 - Pass emails or UUIDs in `assignedTo` / `createdBy` name fields
 - Skip `get_users_assigned_to_project` or ask for assignee by name/email when the tool works
+- Default priority to Minor — always choose Blocker/Critical/Major/Minor from the skill rubric
+- Omit `assignedBy` — it must equal `createdBy` (tool auto-fills if you pass `createdBy`)

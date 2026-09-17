@@ -26,8 +26,9 @@ Call `get_user_details_by_id_or_email_or_unique_key` with:
 - `identifier` → `userId` from config
 - `companyId` → from config
 
-Use the returned `empName` as `createdBy` and all other creator/updater name fields
-(`updatedBy`, `developedBy`, `verifiedBy`, `automatedBy`, `reviewedBy`).
+Use the returned `empName` as `createdBy`, `assignedBy`, and all other creator/updater
+name fields (`updatedBy`, `developedBy`, `verifiedBy`, `automatedBy`, `reviewedBy`).
+`assignedBy` is always the same as `createdBy` — the tool fills it in automatically if omitted.
 
 ---
 
@@ -96,11 +97,25 @@ Collect or draft:
 |---|---|
 | `title` | Short, specific summary of the failure (≤ 120 chars) |
 | `description` | Root cause, failing step, trace excerpt, environment, run name/ID |
-| `priority` | Default `Minor`. Map test `severity` when known: Blocker→Blocker, Critical→Critical, Major→Major |
+| `priority` | **Required — you must choose.** Do not default to Minor. Pick based on impact: |
+| `assignedBy` | Same as `createdBy` (auto-filled by the tool if omitted) |
 | `dependency` | Comma-separated test-case unique keys, e.g. `TC-89765,TC-89099` — no spaces |
 | `testMode` | `Web`, `API`, `Mobile`, or `CLI` from the failing case(s) |
 | `testType` | `Automation` for automated test failures; `Manual` otherwise |
 | `rootCause` | Default `Other`; set a more specific value when clear from triage |
+
+### Priority rubric (choose one — explain your choice in the confirmation table)
+
+| Priority | Use when |
+|---|---|
+| **Blocker** | Entire workflow or release is blocked; no workaround; crash, data loss, security hole, payment/auth completely broken |
+| **Critical** | Core feature unusable for most users; widespread failures (many cases / key regression path); production-down class issues |
+| **Major** | Important feature broken but workaround exists; single critical path fails; API returns wrong data for a key operation |
+| **Minor** | Cosmetic/UI polish, edge case, flaky locator, low-traffic path, minor assertion wording mismatch |
+
+When test-case `severity` is known from `failed_cases`, use it as a **starting point**
+(Blocker→Blocker, Critical→Critical, Major→Major, Minor→Minor) but **override** if the
+failure analysis shows higher or lower real-world impact.
 
 Leave `status`, `state`, `sprint`, and `story` unset unless the user specifies them.
 
@@ -111,12 +126,12 @@ Leave `status`, `state`, `sprint`, and `story` unset unless the user specifies t
 Call `create_defect` with all required fields:
 
 ```
-title, description, assignedTo, assignedToUUID, userId, createdBy,
-updatedBy, developedBy, verifiedBy, automatedBy, reviewedBy,
+title, description, priority, assignedTo, assignedToUUID, userId, createdBy,
+assignedBy, updatedBy, developedBy, verifiedBy, automatedBy, reviewedBy,
 module, feature, projectId, companyId
 ```
 
-Plus optional: `priority`, `dependency`, `testMode`, `testType`, `rootCause`,
+Plus optional: `dependency`, `testMode`, `testType`, `rootCause`,
 `environment`, `browser`, `comments`.
 
 Report back: defect `uniqueKey`, `title`, assignee, and linked test cases (`dependency`).
@@ -149,11 +164,12 @@ Use this when the user confirms defect creation after `analyze-run` / `failure-a
 
 7. **Confirm before creating** — show a table of planned defects:
 
-   | # | Title | Test cases (unique keys) | Priority | Assignee |
+   | # | Title | Test cases (unique keys) | Priority (rationale) | Assignee |
    |---|---|---|---|---|
-   | 1 | … | TC-001, TC-002, TC-003 | Major | … |
+   | 1 | … | TC-001, TC-002, TC-003 | Major — checkout blocked | … |
 
-   Ask the user to confirm or adjust assignee/priority, then create each row via Step 5.
+   Include a one-line **rationale** for each priority. Ask the user to confirm or adjust
+   assignee/priority, then create each row via Step 5.
 
 ---
 

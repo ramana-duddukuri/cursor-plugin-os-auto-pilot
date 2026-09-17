@@ -127,8 +127,11 @@ async def get_platform(path: str, params: dict[str, Any] | None = None) -> dict[
 
 
 async def post_backend(path: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
+    hdrs = _headers()
+    if headers:
+        hdrs.update(headers)
     resp = await get_client().post(
-        f"{backend_url()}{path}", json=payload, headers=_headers().update(headers or {})
+        f"{backend_url()}{path}", json=payload, headers=hdrs
     )
     return _result(resp)
 
@@ -156,8 +159,11 @@ async def get_backend(path: str, params: dict[str, Any] | None = None) -> dict[s
 
 
 async def patch_backend(path: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
+    hdrs = _headers()
+    if headers:
+        hdrs.update(headers)
     resp = await get_client().patch(
-        f"{backend_url()}{path}", json=payload, headers=_headers().update(headers or {})
+        f"{backend_url()}{path}", json=payload, headers=hdrs
     )
     return _result(resp)
 
